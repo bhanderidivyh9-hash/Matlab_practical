@@ -1,0 +1,482 @@
+function SignalClassificationGame
+clc;
+close all;
+
+% SIGNAL CLASSIFICATION GAME
+% 20 signals, 2 questions per round, 40 marks
+
+names = {
+    'Sine Wave'; 'Cosine Wave'; 'Unit Step'; 'Decaying Exponential';
+    'Growing Exponential'; 'Ramp'; 'Constant Signal'; 'Square Wave';
+    'Triangular Wave'; 'Finite Pulse'; 'Alternating Sequence';
+    'Discrete Exponential'; 'Discrete Sine'; 'Discrete Cosine';
+    'Discrete Pulse'; 'Damped Sine'; 'Random Noise';
+    'Random Binary Signal'; 'Absolute Sine'; 'Zero Signal'
+};
+
+% Five properties:
+% 1 Continuous/Discrete
+% 2 Energy/Power/Neither
+% 3 Periodic/Aperiodic
+% 4 Causal/Non-causal
+% 5 Deterministic/Random
+
+answers = {
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Neither','Aperiodic','Causal','Deterministic';
+ 'Continuous','Energy','Aperiodic','Causal','Deterministic';
+ 'Continuous','Neither','Aperiodic','Causal','Deterministic';
+ 'Continuous','Neither','Aperiodic','Causal','Deterministic';
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Energy','Aperiodic','Causal','Deterministic';
+ 'Discrete','Power','Periodic','Non-causal','Deterministic';
+ 'Discrete','Energy','Aperiodic','Causal','Deterministic';
+ 'Discrete','Power','Periodic','Non-causal','Deterministic';
+ 'Discrete','Power','Periodic','Non-causal','Deterministic';
+ 'Discrete','Energy','Aperiodic','Causal','Deterministic';
+ 'Continuous','Energy','Aperiodic','Causal','Deterministic';
+ 'Continuous','Power','Aperiodic','Non-causal','Random';
+ 'Discrete','Power','Aperiodic','Non-causal','Random';
+ 'Continuous','Power','Periodic','Non-causal','Deterministic';
+ 'Continuous','Energy','Aperiodic','Non-causal','Deterministic'
+};
+
+properties = {'Continuous/Discrete','Energy/Power/Neither', ...
+    'Periodic/Aperiodic','Causal/Non-causal', ...
+    'Deterministic/Random'};
+
+options = {
+    {'Continuous','Discrete'}
+    {'Energy','Power','Neither'}
+    {'Periodic','Aperiodic'}
+    {'Causal','Non-causal'}
+    {'Deterministic','Random'}
+};
+
+% Game variables
+score = 0;
+roundNo = 1;
+questionNo = 1;
+order = randperm(20);
+roundProperties = zeros(20,2);
+topicScore = zeros(1,5);
+topicTotal = zeros(1,5);
+wrong = {};
+currentSignal = 1;
+currentProperty = 1;
+mode = 'game';
+vivaCount = 0;
+
+% GUI window
+fig = figure('Name','Signal Classification Game', ...
+    'NumberTitle','off','Position',[200 100 850 570], ...
+    'Color',[0.92 0.96 1]);
+
+ax = axes('Parent',fig,'Position',[0.09 0.37 0.82 0.42]);
+
+titleLabel = uicontrol(fig,'Style','text', ...
+    'Position',[100 510 650 35], ...
+    'String','SIGNAL CLASSIFICATION GAME', ...
+    'FontSize',17,'FontWeight','bold', ...
+    'BackgroundColor',[0.92 0.96 1]);
+
+infoLabel = uicontrol(fig,'Style','text', ...
+    'Position',[80 470 690 28], ...
+    'String','Press Start Game to begin!', ...
+    'FontSize',12,'BackgroundColor',[0.92 0.96 1]);
+
+questionLabel = uicontrol(fig,'Style','text', ...
+    'Position',[50 150 350 30], ...
+    'String','Select a property:', ...
+    'FontSize',12,'BackgroundColor',[0.92 0.96 1]);
+
+propertyMenu = uicontrol(fig,'Style','popupmenu', ...
+    'Position',[400 150 230 30], ...
+    'String',properties,'FontSize',11);
+
+answerMenu = uicontrol(fig,'Style','popupmenu', ...
+    'Position',[400 110 230 30], ...
+    'String',options{1},'FontSize',11);
+
+uicontrol(fig,'Style','text','Position',[50 110 350 30], ...
+    'String','Select your answer:', ...
+    'FontSize',12,'BackgroundColor',[0.92 0.96 1]);
+
+resultLabel = uicontrol(fig,'Style','text', ...
+    'Position',[40 65 770 35], ...
+    'String','Welcome!', ...
+    'FontSize',10,'BackgroundColor',[0.92 0.96 1]);
+
+uicontrol(fig,'Style','pushbutton','Position',[40 20 150 35], ...
+    'String','Start Game','FontSize',11, ...
+    'Callback',@startGame);
+
+uicontrol(fig,'Style','pushbutton','Position',[210 20 150 35], ...
+    'String','Submit Answer','FontSize',11, ...
+    'Callback',@submitAnswer);
+
+uicontrol(fig,'Style','pushbutton','Position',[380 20 150 35], ...
+    'String','Viva Mode','FontSize',11, ...
+    'Callback',@vivaMode);
+
+uicontrol(fig,'Style','pushbutton','Position',[550 20 200 35], ...
+    'String','Show Report Card','FontSize',11, ...
+    'Callback',@reportCard);
+
+set(propertyMenu,'Callback',@changeProperty);
+
+% START GAME
+    function startGame(~,~)
+
+        score = 0;
+        roundNo = 1;
+        questionNo = 1;
+
+        order = randperm(20);
+
+        % Randomly choose 2 different properties per round
+        for r = 1:20
+            roundProperties(r,:) = randperm(5,2);
+        end
+
+        topicScore = zeros(1,5);
+        topicTotal = zeros(1,5);
+        wrong = {};
+
+        mode = 'game';
+        vivaCount = 0;
+
+        set(propertyMenu,'Enable','on');
+        set(answerMenu,'Enable','on');
+
+        showQuestion();
+    end
+
+% DISPLAY QUESTION
+    function showQuestion()
+
+        currentSignal = order(roundNo);
+        currentProperty = roundProperties(roundNo,questionNo);
+
+        drawSignal(currentSignal);
+
+        set(titleLabel,'String',names{currentSignal});
+
+        set(infoLabel,'String',sprintf( ...
+            'Round %d/20 | Question %d/40 | Score %d/40', ...
+            roundNo,(roundNo-1)*2+questionNo,score));
+
+        set(questionLabel,'String', ...
+            ['Classify: ' properties{currentProperty}]);
+
+        % Show only the options for the selected property
+        set(propertyMenu,'Value',currentProperty);
+
+        set(answerMenu,'String',options{currentProperty},'Value',1);
+
+        set(resultLabel,'String','Choose your answer and submit.');
+    end
+
+% CHANGE PROPERTY OPTIONS
+    function changeProperty(~,~)
+
+        selected = get(propertyMenu,'Value');
+
+        set(questionLabel,'String', ...
+            ['Classify: ' properties{selected}]);
+
+        set(answerMenu,'String',options{selected},'Value',1);
+    end
+
+% SUBMIT ANSWER
+    function submitAnswer(~,~)
+
+        selectedProperty = get(propertyMenu,'Value');
+        chosen = options{selectedProperty}{get(answerMenu,'Value')};
+        correct = answers{currentSignal,selectedProperty};
+
+        % Update topic statistics only in normal game mode
+        if strcmp(mode,'game')
+            topicTotal(selectedProperty) = ...
+                topicTotal(selectedProperty)+1;
+        end
+
+        if strcmp(chosen,correct)
+
+            if strcmp(mode,'game')
+                score = score+1;
+                topicScore(selectedProperty) = ...
+                    topicScore(selectedProperty)+1;
+            end
+
+            message = 'CORRECT!';
+
+        else
+
+            message = sprintf('WRONG! Correct answer: %s. %s', ...
+                correct,getExplanation(correct));
+
+            if strcmp(mode,'game')
+                wrong(end+1,:) = {names{currentSignal}, ...
+                    properties{selectedProperty},chosen,correct};
+            end
+        end
+
+        % VIVA MODE
+        if strcmp(mode,'viva')
+
+            vivaCount = vivaCount+1;
+
+            set(infoLabel,'String', ...
+                ['Viva Mode | Question ' num2str(vivaCount)]);
+
+            set(resultLabel,'String',message);
+
+            return;
+        end
+
+        % Normal game mode
+        if roundNo == 20 && questionNo == 2
+
+            set(titleLabel,'String','GAME COMPLETED!');
+
+            set(infoLabel,'String',sprintf( ...
+                'Final Score: %d/40',score));
+
+            set(questionLabel,'String','Game finished!');
+
+            set(resultLabel,'String', ...
+                'Click Show Report Card to view your performance.');
+
+            return;
+        end
+
+        % Move to next question or round
+        if questionNo == 1
+            questionNo = 2;
+        else
+            questionNo = 1;
+            roundNo = roundNo+1;
+        end
+
+        showQuestion();
+
+    end
+
+% SIMPLE EXPLANATIONS
+    function msg = getExplanation(correct)
+
+        switch correct
+
+            case 'Continuous'
+                msg = 'Defined at every time instant.';
+
+            case 'Discrete'
+                msg = 'Defined at separate time instants.';
+
+            case 'Energy'
+                msg = 'Has finite total energy.';
+
+            case 'Power'
+                msg = 'Has finite nonzero average power.';
+
+            case 'Neither'
+                msg = 'Neither finite energy nor finite nonzero power.';
+
+            case 'Periodic'
+                msg = 'Repeats after a fixed interval.';
+
+            case 'Aperiodic'
+                msg = 'Does not repeat at a fixed interval.';
+
+            case 'Causal'
+                msg = 'Zero before time zero.';
+
+            case 'Non-causal'
+                msg = 'Nonzero values occur before time zero.';
+
+            case 'Deterministic'
+                msg = 'Can be described exactly.';
+
+            otherwise
+                msg = 'Contains random values.';
+        end
+    end
+
+% DRAW SIGNAL
+    function drawSignal(id)
+
+        cla(ax);
+
+        t = -5:0.05:5;
+        n = -10:10;
+
+        switch id
+
+            case 1
+                y = sin(2*pi*t);
+
+            case 2
+                y = cos(2*pi*t);
+
+            case 3
+                y = double(t>=0);
+
+            case 4
+                y = exp(-t).*(t>=0);
+
+            case 5
+                y = exp(t).*(t>=0);
+
+            case 6
+                y = t.*(t>=0);
+
+            case 7
+                y = ones(size(t));
+
+            case 8
+                y = sign(sin(2*pi*t));
+
+            case 9
+                y = 2/pi*asin(sin(2*pi*t));
+
+            case 10
+                y = double(t>=0 & t<=0.5);
+
+            case 11
+                y = (-1).^n;
+
+            case 12
+                y = (0.7).^n.*(n>=0);
+
+            case 13
+                y = sin(0.5*pi*n);
+
+            case 14
+                y = cos(0.5*pi*n);
+
+            case 15
+                y = double(n>=0 & n<=4);
+
+            case 16
+                y = exp(-0.5*t).*(t>=0).*sin(2*pi*t);
+
+            case 17
+                y = randn(size(t));
+
+            case 18
+                y = 2*(rand(size(n))>0.5)-1;
+
+            case 19
+                y = abs(sin(2*pi*t));
+
+            case 20
+                y = zeros(size(t));
+
+        end
+
+        if strcmp(answers{id,1},'Discrete')
+            stem(ax,n,y,'filled');
+            xlabel(ax,'n (discrete time)');
+        else
+            plot(ax,t,y,'LineWidth',2);
+            xlabel(ax,'t (time)');
+        end
+
+        ylabel(ax,'Amplitude');
+
+        title(ax,['Signal: ' names{id}]);
+
+        grid(ax,'on');
+
+    end
+
+% VIVA MODE
+    function vivaMode(~,~)
+
+        mode = 'viva';
+
+        currentSignal = randi(20);
+
+        currentProperty = randi(5);
+
+        drawSignal(currentSignal);
+
+        set(titleLabel,'String','VIVA MODE');
+
+        set(infoLabel,'String', ...
+            'Classify the randomly generated signal.');
+
+        set(questionLabel,'String', ...
+            ['Classify: ' properties{currentProperty}]);
+
+        set(propertyMenu,'Value',currentProperty);
+
+        set(answerMenu,'String',options{currentProperty},'Value',1);
+
+        set(resultLabel,'String', ...
+            'Choose your answer and click Submit Answer.');
+
+    end
+
+% REPORT CARD
+    function reportCard(~,~)
+
+        report = sprintf( ...
+            'FINAL REPORT CARD\n\nTotal Score: %d/40\n\n',score);
+
+        percentages = zeros(1,5);
+
+        for k = 1:5
+
+            if topicTotal(k)>0
+
+                percentages(k) = ...
+                    100*topicScore(k)/topicTotal(k);
+
+            end
+
+            report = [report sprintf('%s: %d/%d (%.0f%%)\n', ...
+                properties{k},topicScore(k), ...
+                topicTotal(k),percentages(k))];
+
+        end
+
+        if any(topicTotal>0)
+
+            [~,weakest] = min(percentages);
+
+            report = [report sprintf( ...
+                '\nWeakest Topic: %s',properties{weakest})];
+
+        end
+
+        if ~isempty(wrong)
+
+            report = [report sprintf( ...
+                '\n\nReview your wrong answers:\n')];uu
+
+            for k = 1:size(wrong,1)
+
+                report = [report sprintf( ...
+                    '\n%s | %s | Correct: %s', ...
+                    wrong{k,1},wrong{k,2},wrong{k,4})];
+
+            end
+
+        end
+
+        msgbox(report,'Your Report Card');
+
+    end
+
+end
+
+
+
+
+
+
